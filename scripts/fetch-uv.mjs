@@ -36,7 +36,12 @@ const response = await fetch(url, { redirect: "follow" });
 if (!response.ok || !response.body) throw new Error(`Falha ao baixar uv ${UV_VERSION}: HTTP ${response.status}`);
 await pipeline(Readable.fromWeb(response.body), createWriteStream(archive));
 
-const extraction = spawnSync("tar", ["-xf", archive, "-C", runtime], { stdio: "inherit" });
+// Windows tar treats an absolute `D:\\...` path like a remote archive. Running
+// from the temporary directory also keeps the invocation identical on macOS.
+const extraction = spawnSync("tar", ["-xf", path.basename(archive)], {
+  cwd: runtime,
+  stdio: "inherit"
+});
 if (extraction.error) throw extraction.error;
 if (extraction.status !== 0) throw new Error(`Não foi possível extrair o pacote uv (código ${extraction.status})`);
 
