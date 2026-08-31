@@ -1,0 +1,27 @@
+# JavaScript
+web/node_modules/
+web/.next/
+web/out/
+web/.env*
+!web/.env.example
+
+# Python / model environments
+worker/.venv/
+worker/.clearvoice-venv/
+worker/.pytest_cache/
+worker/.ruff_cache/
+worker/**/__pycache__/
+worker/*.egg-info/
+worker/.env
+
+# Processed media and model caches
+worker/.voice-data/
+worker/models/
+worker/checkpoints/
+.runtime/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.pyc
+*.pyo

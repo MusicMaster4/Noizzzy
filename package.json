@@ -1,0 +1,9 @@
+{
+  "name": "vox-polish",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./run.ps1",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./run.ps1"
+  }
+}
