@@ -1,11 +1,11 @@
-# Vox Polish Web
+# Noizzzy Web
 
-Interface Next.js do Vox Polish. Ela envia a mídia ao worker local configurado em `NEXT_PUBLIC_API_URL`, acompanha o job e oferece comparação A/B, métricas e downloads.
+Interface estática Next.js do aplicativo Electron. O build usa `output: "export"` e caminhos de assets relativos para funcionar via `file://` sem servidor Node.
 
-```powershell
-Copy-Item .env.example .env.local
-npm install
-npm run dev
+```bash
+npm ci
+npm run lint
+npm run build
 ```
 
-Validação: `npm run lint` e `npm run build`.
+No navegador de desenvolvimento, a API padrão é `http://127.0.0.1:35592`. No Electron, o preload expõe apenas informações de plataforma e o instalador do runtime de IA; Node.js permanece desabilitado e o renderer roda com `contextIsolation` e sandbox.

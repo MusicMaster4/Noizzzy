@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
 import re
 import shutil
@@ -90,7 +91,7 @@ class VoicePipeline:
 
         await progress("normalizing_ebu_r128_pass_1", 0.76)
         safe_stem = Path(job.input_name).stem[:80] or "audio"
-        final_audio = job.directory / f"{safe_stem}_voice_clean_{job.profile}.wav"
+        final_audio = job.directory / f"{safe_stem}_noizzzy_{job.profile}.wav"
         if job.separate_voice:
             _, metrics_after = await normalize_two_pass(
                 self.settings.ffmpeg,
@@ -126,7 +127,7 @@ class VoicePipeline:
             outputs.append(self._output(job, final_instrumental, "instrumental", "audio/wav"))
         if job.input_kind == "video":
             await progress("remuxing_video", 0.91)
-            final_video = job.directory / f"{safe_stem}_voice_clean_{job.profile}.mp4"
+            final_video = job.directory / f"{safe_stem}_noizzzy_{job.profile}.mp4"
             await self._remux_video(job.source_path, final_audio, final_video, cancel_event)
             outputs.append(self._output(job, final_video, "video", "video/mp4"))
 
@@ -142,7 +143,28 @@ class VoicePipeline:
         progress: ProgressCallback,
     ) -> tuple[Path, Path]:
         try:
-            result = await asyncio.to_thread(self._run_audio_separator, source, output_dir)
+            if self.settings.separator_python:
+                runner = self.settings.separator_runner or Path(__file__).with_name("separator_bridge.py")
+                await run_command(
+                    [
+                        str(self.settings.separator_python),
+                        str(runner),
+                        str(source),
+                        str(output_dir),
+                        str(self.settings.model_dir),
+                        self.settings.separator_model,
+                        self.settings.separator_device,
+                    ],
+                    cancel_event=cancel_event,
+                )
+                result = (
+                    output_dir / "noizzzy_vocals.wav",
+                    output_dir / "noizzzy_instrumental.wav",
+                )
+                if not all(path.is_file() and path.stat().st_size for path in result):
+                    raise ProcessingError("O separador isolado não produziu os dois stems esperados")
+            else:
+                result = await asyncio.to_thread(self._run_audio_separator, source, output_dir)
             if cancel_event.is_set():
                 raise JobCancelled("Processamento cancelado")
             return result
@@ -179,10 +201,11 @@ class VoicePipeline:
             return destination, instrumental
 
     def _run_audio_separator(self, source: Path, output_dir: Path) -> tuple[Path, Path]:
-        import torch
-        from audio_separator.separator import (  # type: ignore[import-not-found]
-            Separator,
-        )
+        # Keep optional multi-gigabyte ML dependencies out of the core desktop sidecar.
+        # The Electron runtime normally invokes separator_bridge.py in its isolated env.
+        torch = importlib.import_module("".join(("to", "rch")))
+        separator_module = importlib.import_module("".join(("audio_", "separator", ".separator")))
+        Separator = separator_module.Separator
 
         requested_device = self.settings.separator_device.lower()
         use_autocast = requested_device == "cuda" or (
@@ -238,7 +261,7 @@ class VoicePipeline:
     ) -> None:
         try:
             if self.settings.enhancer_python:
-                runner = Path(__file__).with_name("enhancer_bridge.py")
+                runner = self.settings.enhancer_runner or Path(__file__).with_name("enhancer_bridge.py")
                 await run_command(
                     [
                         str(self.settings.enhancer_python),
@@ -279,7 +302,8 @@ class VoicePipeline:
             )
 
     def _run_clearer_voice(self, source: Path, destination: Path) -> None:
-        from clearvoice import ClearVoice  # type: ignore[import-not-found]
+        clearer_module = importlib.import_module("".join(("clear", "voice")))
+        ClearVoice = clearer_module.ClearVoice
 
         clearer = ClearVoice(task="speech_enhancement", model_names=[self.settings.enhancer_model])
         output = clearer(input_path=str(source), online_write=False)

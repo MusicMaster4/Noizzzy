@@ -17,6 +17,21 @@ type Job = {
   metrics_before?: AudioMetrics | null; metrics_after?: AudioMetrics | null; outputs?: OutputFile[];
 };
 
+type RuntimeStatus = { ready: boolean; installing: boolean; progress: number; message: string; error?: string | null };
+type AppInfo = {
+  name: string; version: string; platform: string; arch: string; acceleration: string; engineLabel: string;
+  worker: { ready: boolean; message?: string; error?: string | null };
+};
+type NoizzzyDesktop = {
+  getAppInfo: () => Promise<AppInfo>;
+  getRuntimeStatus: () => Promise<RuntimeStatus>;
+  installRuntime: () => Promise<RuntimeStatus>;
+  onRuntimeStatus: (callback: (status: RuntimeStatus) => void) => () => void;
+  onWorkerStatus: (callback: (status: AppInfo["worker"]) => void) => () => void;
+};
+
+declare global { interface Window { noizzzy?: NoizzzyDesktop } }
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:35592";
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const ACCEPTED = ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp4", "audio/flac", "audio/ogg", "video/mp4", "video/quicktime", "video/webm", "video/x-matroska"];
@@ -106,8 +121,20 @@ export default function Home() {
   const [job, setJob] = useState<Job | null>(null); const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragging, setDragging] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null); const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const busy = uploading || job?.status === "queued" || job?.status === "processing" || job?.status === "cancelling"; const complete = job?.status === "completed";
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => {
+    if (!window.noizzzy) return;
+    let active = true;
+    void Promise.all([window.noizzzy.getAppInfo(), window.noizzzy.getRuntimeStatus()]).then(([info, status]) => {
+      if (!active) return;
+      setAppInfo(info); setRuntime(status); document.documentElement.dataset.platform = info.platform;
+    });
+    const offRuntime = window.noizzzy.onRuntimeStatus((status) => { if (active) setRuntime(status); });
+    const offWorker = window.noizzzy.onWorkerStatus((status) => { if (active) setAppInfo((current) => current ? { ...current, worker: status } : current); });
+    return () => { active = false; offRuntime(); offWorker(); };
+  }, []);
   function validate(candidate: File) {
     if (candidate.size > MAX_BYTES) return "O arquivo ultrapassa o limite de 5 GB.";
     if (!ACCEPTED.includes(candidate.type) && !/\.(wav|mp3|m4a|aac|flac|ogg|mp4|mov|webm|mkv)$/i.test(candidate.name)) return "Formato não reconhecido. Envie WAV, MP3, FLAC, M4A, MP4, MOV, WebM ou MKV.";
@@ -123,7 +150,9 @@ export default function Home() {
     } catch (reason) { if (pollRef.current) clearInterval(pollRef.current); pollRef.current = null; setError(reason instanceof Error ? reason.message : "A conexão com o processador foi interrompida."); }
   }
   async function start() {
-    if (!file) return; setUploading(true); setUploadProgress(0); setError(null); const form = new FormData(); form.append("file", file); form.append("profile", profile); form.append("separate_voice", String(separateVoice));
+    if (!file) return;
+    if (separateVoice && runtime && !runtime.ready) { setError("Instale os modelos de IA antes de isolar a voz, ou escolha “Voz já pronta”."); return; }
+    setUploading(true); setUploadProgress(0); setError(null); const form = new FormData(); form.append("file", file); form.append("profile", profile); form.append("separate_voice", String(separateVoice));
     try {
       const payload = await new Promise<{ id: string; status: JobStatus; detail?: string }>((resolve, reject) => {
         const request = new XMLHttpRequest(); request.open("POST", `${API_URL}/api/jobs`);
@@ -142,12 +171,13 @@ export default function Home() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Não foi possível iniciar o processamento."); } finally { setUploading(false); }
   }
   async function cancel() { if (!job) return; await fetch(`${API_URL}/api/jobs/${job.id}`, { method: "DELETE" }); await refreshJob(job.id); }
+  async function installRuntime() { if (!window.noizzzy) return; setError(null); const status = await window.noizzzy.installRuntime(); setRuntime(status); if (status.error) setError(status.error); }
   function reset() { if (pollRef.current) clearInterval(pollRef.current); pollRef.current = null; setFile(null); setJob(null); setError(null); if (inputRef.current) inputRef.current.value = ""; }
   const cleanAudio = job?.outputs?.find((output) => output.kind === "audio");
   const originalUrl = absoluteUrl(job?.source_url || (job ? `/api/jobs/${job.id}/source` : "")); const resultUrl = absoluteUrl(cleanAudio?.url);
 
   return <main className="app-shell">
-    <nav className="topbar"><a className="brand" href="#top" aria-label="Vox Polish, início"><span className="brand-mark"><AudioLines size={21} /></span><span>VOX<span>/</span>POLISH</span></a><div className="engine-status"><span /> GPU LOCAL · PRIVADO</div></nav>
+    <nav className="topbar"><a className="brand" href="#top" aria-label="Noizzzy, início"><span className="brand-mark"><AudioLines size={21} /></span><span>NOI<span>ZZZ</span>Y</span></a><div className={`engine-status ${appInfo?.worker.ready === false ? "offline" : ""}`}><span /> {appInfo?.worker.ready === false ? "PROCESSADOR INDISPONÍVEL" : appInfo?.engineLabel || "PROCESSAMENTO LOCAL · PRIVADO"}</div></nav>
     <div className="workspace" id="top">
       <header className="intro"><span className="eyebrow"><Radio size={14} /> ESTÚDIO DE VOZ</span><h1>Do ruído à <em>presença.</em></h1><p>Isole falas de música e ambiente. Restaure detalhes e finalize o volume com padrões usados em broadcast.</p><div className="signal-line" aria-hidden="true">{Array.from({ length: 9 }).map((_, index) => <span key={index} />)}</div><div className="engine-notes"><div><span>01</span><strong>Mel-Band RoFormer</strong><small>Separação neural de voz</small></div><div><span>02</span><strong>MossFormer2 · 48 kHz</strong><small>Restauração full-band</small></div><div><span>03</span><strong>ITU-R BS.1770</strong><small>Loudness e true peak</small></div></div></header>
       <section className="studio-card">
@@ -156,7 +186,7 @@ export default function Home() {
           <input ref={inputRef} type="file" accept="audio/*,video/mp4,video/quicktime,video/webm,.mkv" onChange={(event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0])} /><div className="upload-orbit"><Upload size={29} /></div><h3>Arraste áudio ou vídeo</h3><p>ou clique para escolher do computador</p><div className="format-row">{["WAV", "MP3", "FLAC", "MP4", "MOV", "MKV"].map((item) => <span key={item}>{item}</span>)}</div><small>até 5 GB · o áudio nunca sai desta máquina</small>
         </div>}
         {file && !complete && <><div className="file-card"><div className="file-icon">{file.type.startsWith("video/") ? <FileVideo /> : <FileAudio />}</div><div className="file-info"><strong>{file.name}</strong><span>{file.type.startsWith("video/") ? "Vídeo com faixa de áudio" : "Arquivo de áudio"} · {humanSize(file.size)}</span></div>{!busy && <button className="icon-button" aria-label="Remover arquivo" onClick={reset}><X size={19} /></button>}</div>
-          {!busy && <div className="profile-area"><div className="section-label"><span>TRATAMENTO DA ENTRADA</span><small>Escolha se a voz precisa ser isolada</small></div><div className="mode-grid"><button type="button" aria-pressed={separateVoice} className={separateVoice ? "mode-option selected" : "mode-option"} onClick={() => setSeparateVoice(true)}><span className="radio-dot" /><div><strong>Isolar e restaurar voz</strong><small>Para áudio com música, ruído ou outros sons</small></div><AudioLines size={18} /></button><button type="button" aria-pressed={!separateVoice} className={!separateVoice ? "mode-option selected" : "mode-option"} onClick={() => setSeparateVoice(false)}><span className="radio-dot" /><div><strong>Voz já pronta</strong><small>Preserva timbre e efeitos; ajusta somente nível e pico</small></div><WandSparkles size={18} /></button></div><div className="section-label delivery-label"><span>PERFIL DE ENTREGA</span><small>Define loudness e teto de pico</small></div><div className="profile-grid"><button className={profile === "streaming" ? "profile selected" : "profile"} onClick={() => setProfile("streaming")}><span className="radio-dot" /><div><strong>Streaming / Voz pronta</strong><small>−16 LUFS · −1,5 dBTP</small></div><Sparkles size={18} /></button><button className={profile === "broadcast" ? "profile selected" : "profile"} onClick={() => setProfile("broadcast")}><span className="radio-dot" /><div><strong>Broadcast EBU R128</strong><small>−23 LUFS · −1,0 dBTP</small></div><Radio size={18} /></button></div><button className="primary-action" onClick={start}><WandSparkles size={19} /> {separateVoice ? "Isolar e finalizar voz" : "Finalizar sem alterar o timbre"} <ChevronRight size={19} /></button></div>}
+          {!busy && <div className="profile-area"><div className="section-label"><span>TRATAMENTO DA ENTRADA</span><small>Escolha se a voz precisa ser isolada</small></div><div className="mode-grid"><button type="button" aria-pressed={separateVoice} className={separateVoice ? "mode-option selected" : "mode-option"} onClick={() => setSeparateVoice(true)}><span className="radio-dot" /><div><strong>Isolar e restaurar voz</strong><small>Para áudio com música, ruído ou outros sons</small></div><AudioLines size={18} /></button><button type="button" aria-pressed={!separateVoice} className={!separateVoice ? "mode-option selected" : "mode-option"} onClick={() => setSeparateVoice(false)}><span className="radio-dot" /><div><strong>Voz já pronta</strong><small>Preserva timbre e efeitos; ajusta somente nível e pico</small></div><WandSparkles size={18} /></button></div><div className="section-label delivery-label"><span>PERFIL DE ENTREGA</span><small>Define loudness e teto de pico</small></div><div className="profile-grid"><button className={profile === "streaming" ? "profile selected" : "profile"} onClick={() => setProfile("streaming")}><span className="radio-dot" /><div><strong>Streaming / Voz pronta</strong><small>−16 LUFS · −1,5 dBTP</small></div><Sparkles size={18} /></button><button className={profile === "broadcast" ? "profile selected" : "profile"} onClick={() => setProfile("broadcast")}><span className="radio-dot" /><div><strong>Broadcast EBU R128</strong><small>−23 LUFS · −1,0 dBTP</small></div><Radio size={18} /></button></div>{separateVoice && runtime && !runtime.ready && <div className="runtime-setup"><div><Gauge size={18} /><span><strong>{runtime.message}</strong><small>{runtime.installing ? `Preparando IA local · ${runtime.progress}%` : "Necessário uma vez; download de aproximadamente 4 GB."}</small></span></div><button type="button" onClick={installRuntime} disabled={runtime.installing}>{runtime.installing ? <><LoaderCircle className="spin" size={15} /> Instalando</> : "Instalar modelos"}</button>{runtime.installing && <div className="runtime-progress"><span style={{ width: `${runtime.progress}%` }} /></div>}</div>}<button className="primary-action" onClick={start} disabled={Boolean(separateVoice && runtime && !runtime.ready)}><WandSparkles size={19} /> {separateVoice ? "Isolar e finalizar voz" : "Finalizar sem alterar o timbre"} <ChevronRight size={19} /></button></div>}
           {uploading && !job && <div className="processing" aria-live="polite"><div className="progress-copy"><div><LoaderCircle className="spin" /><span><strong>Transferindo para o worker local</strong><small>O arquivo permanece nesta máquina.</small></span></div><b>{Math.round(uploadProgress)}%</b></div><div className="progress-track"><span style={{ width: `${uploadProgress}%` }} /></div></div>}
           {busy && job && <div className="processing" aria-live="polite"><div className="progress-copy"><div><LoaderCircle className="spin" /><span><strong>{job.status === "cancelling" ? "Cancelando com segurança" : jobStages(job).find((item) => item.key === stageKey(job.stage))?.label || "Preparando mídia"}</strong><small>Os modelos trabalham no sinal sem enviar o arquivo para a nuvem.</small></span></div><b>{Math.round(progressPercent(job.progress))}%</b></div><div className="progress-track"><span style={{ width: `${progressPercent(job.progress)}%` }} /></div><StageRail job={job} /><button className="cancel-button" onClick={cancel} disabled={job.status === "cancelling"}><CircleStop size={16} /> {job.status === "cancelling" ? "Cancelando…" : "Cancelar processamento"}</button></div>}
         </>}
@@ -165,6 +195,6 @@ export default function Home() {
         {complete && cleanAudio && <div className="result-area"><div className="success-ribbon"><span><Check size={18} /></span><div><strong>{job.separate_voice === false ? "Voz preservada e finalizada" : "Voz restaurada e finalizada"}</strong><small>{job.separate_voice === false ? "Timbre, efeitos e imagem estéreo preservados; apenas nível e pico foram ajustados." : "Separação, limpeza e loudness concluídos."}</small></div></div><ABPlayer before={originalUrl} after={resultUrl} /><div className="metrics-strip"><div><span>LOUDNESS</span><strong>{metric(job.metrics_after?.integrated_lufs, "LUFS")}</strong><small>{metric(job.metrics_before?.integrated_lufs, "LUFS")} antes</small></div><div><span>TRUE PEAK</span><strong>{metric(job.metrics_after?.true_peak_dbtp, "dBTP")}</strong><small>{metric(job.metrics_before?.true_peak_dbtp, "dBTP")} antes</small></div><div><span>FAIXA DINÂMICA</span><strong>{metric(job.metrics_after?.loudness_range_lu, "LU")}</strong><small>{metric(job.metrics_before?.loudness_range_lu, "LU")} antes</small></div></div><div className="download-list">{job.outputs?.map((output) => <a className="download-card" href={absoluteUrl(output.url)} download key={output.url}><span className="download-icon">{output.kind === "video" ? <FileVideo /> : <FileAudio />}</span><span><strong>{outputLabel(output.kind)}</strong><small>{output.name} · {humanSize(output.size)}</small></span><ArrowDownToLine size={21} /></a>)}</div><button className="reset-button" onClick={reset}><RotateCcw size={16} /> Processar outro arquivo</button></div>}
       </section>
     </div>
-    <footer><span><ShieldCheck size={15} /> Processamento local e temporário</span><span><Gauge size={15} /> CUDA recomendado · CPU compatível</span><span>Arquivos removidos automaticamente após 24 h</span></footer>
+    <footer><span><ShieldCheck size={15} /> Processamento local e temporário</span><span><Gauge size={15} /> {appInfo?.acceleration === "cuda" ? "CUDA ATIVO" : appInfo?.platform === "darwin" ? "OTIMIZADO PARA MAC" : "CPU COMPATÍVEL"}</span><span>Arquivos removidos automaticamente após 24 h</span></footer>
   </main>;
 }

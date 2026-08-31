@@ -1,0 +1,48 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const test = require("node:test");
+const {
+  enhancerRequirements,
+  platformLabel,
+  pythonVersion,
+  runtimeIsReady,
+  runtimePaths,
+  separatorRequirements
+} = require("../lib/platform.cjs");
+
+test("seleciona runtimes compatíveis por arquitetura", () => {
+  assert.equal(pythonVersion("darwin", "x64"), "3.11");
+  assert.equal(pythonVersion("darwin", "arm64"), "3.11");
+  assert.equal(pythonVersion("win32", "x64"), "3.12");
+  assert.equal(platformLabel("win32", "x64", true), "NVIDIA CUDA · LOCAL");
+  assert.equal(platformLabel("darwin", "arm64", false), "APPLE SILICON · LOCAL");
+});
+
+test("instala CUDA apenas no Windows com NVIDIA", () => {
+  assert.ok(separatorRequirements({ platform: "win32", arch: "x64", hasNvidia: true }).some((item) => item.startsWith("onnxruntime-gpu")));
+  assert.ok(separatorRequirements({ platform: "darwin", arch: "arm64", hasNvidia: false }).some((item) => item.includes("[cpu]")));
+  assert.ok(separatorRequirements({ platform: "darwin", arch: "arm64", hasNvidia: false }).includes("torch==2.2.2"));
+  assert.ok(separatorRequirements({ platform: "darwin", arch: "x64", hasNvidia: false }).includes("torch==2.2.2"));
+  assert.ok(enhancerRequirements({ platform: "darwin", arch: "x64" }).includes("torch==2.2.2"));
+});
+
+test("só considera o runtime pronto com executáveis e manifesto compatível", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "noizzzy-platform-test-"));
+  try {
+    const paths = runtimePaths(root, "win32");
+    fs.mkdirSync(path.dirname(paths.separatorPython), { recursive: true });
+    fs.mkdirSync(path.dirname(paths.enhancerPython), { recursive: true });
+    fs.writeFileSync(paths.separatorPython, "");
+    fs.writeFileSync(paths.enhancerPython, "");
+    fs.writeFileSync(paths.marker, JSON.stringify({ schema: 7, versions: { model: "1" } }));
+    assert.equal(runtimeIsReady(paths, { schema: 7, versions: { model: "1" } }), true);
+    fs.writeFileSync(paths.marker, JSON.stringify({ schema: 6, versions: { model: "1" } }));
+    assert.equal(runtimeIsReady(paths, { schema: 7, versions: { model: "1" } }), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

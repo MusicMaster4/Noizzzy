@@ -18,7 +18,15 @@ worker/.env
 worker/.voice-data/
 worker/models/
 worker/checkpoints/
+/checkpoints/
 .runtime/
+node_modules/
+dist-worker/
+build-tools/
+release/
+build/icon.png
+build/icon.ico
+test-results/
 
 # Editor / OS
 .DS_Store

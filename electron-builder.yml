@@ -1,0 +1,54 @@
+appId: com.musicmaster4.noizzzy
+productName: Noizzzy
+copyright: Copyright © 2026 MusicMaster4
+asar: true
+asarUnpack: []
+directories:
+  output: release
+  buildResources: build
+files:
+  - electron/**
+  - web/out/**
+  - package.json
+  - node_modules/electron-log/**
+extraResources:
+  - from: dist-worker/
+    to: worker/
+    filter:
+      - noizzzy-worker*
+  - from: build-tools/
+    to: tools/
+    filter:
+      - uv*
+  - from: build-tools/media/
+    to: media/
+  - from: worker/voice_worker/
+    to: worker-scripts/
+    filter:
+      - enhancer_bridge.py
+      - separator_bridge.py
+artifactName: Noizzzy-${version}-${os}-${arch}.${ext}
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+  verifyUpdateCodeSignature: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Noizzzy
+  uninstallDisplayName: Noizzzy
+mac:
+  icon: build/icon.png
+  category: public.app-category.music
+  minimumSystemVersion: "11.0"
+  target:
+    - dmg
+    - zip
+  identity: "-"
+dmg:
+  title: Noizzzy ${version} (${arch})
+  sign: false
+publish: null

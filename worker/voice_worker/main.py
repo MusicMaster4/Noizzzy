@@ -72,8 +72,8 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
         await application.state.manager.shutdown()
 
     application = FastAPI(
-        title="Voice Clean Worker",
-        version="0.1.0",
+        title="Noizzzy Worker",
+        version="1.0.0",
         lifespan=lifespan,
     )
     application.add_middleware(

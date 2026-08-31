@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     ffprobe: str = "ffprobe"
     separator_model: str = "vocals_mel_band_roformer.ckpt"
     separator_device: str = "auto"
+    separator_python: Path | None = None
+    separator_runner: Path | None = None
     enhancer_model: str = "MossFormer2_SE_48K"
     enhancer_python: Path | None = None
+    enhancer_runner: Path | None = None
     allow_development_fallback: bool = False
     job_ttl_hours: float = 24
 
