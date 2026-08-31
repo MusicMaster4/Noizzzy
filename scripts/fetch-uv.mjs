@@ -36,12 +36,28 @@ const response = await fetch(url, { redirect: "follow" });
 if (!response.ok || !response.body) throw new Error(`Falha ao baixar uv ${UV_VERSION}: HTTP ${response.status}`);
 await pipeline(Readable.fromWeb(response.body), createWriteStream(archive));
 
-// Windows tar treats an absolute `D:\\...` path like a remote archive. Running
-// from the temporary directory also keeps the invocation identical on macOS.
-const extraction = spawnSync("tar", ["-xf", path.basename(archive)], {
-  cwd: runtime,
-  stdio: "inherit"
-});
+function powerShellLiteral(value) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+// GitHub's Windows image exposes GNU tar first in PATH, which cannot unpack a
+// ZIP. Expand-Archive is present on every supported Windows version. macOS uses
+// the native tar implementation with a relative path to avoid drive parsing.
+const extraction = process.platform === "win32"
+  ? spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Expand-Archive -LiteralPath ${powerShellLiteral(archive)} -DestinationPath ${powerShellLiteral(runtime)} -Force`
+      ],
+      { stdio: "inherit" }
+    )
+  : spawnSync("tar", ["-xzf", path.basename(archive)], {
+      cwd: runtime,
+      stdio: "inherit"
+    });
 if (extraction.error) throw extraction.error;
 if (extraction.status !== 0) throw new Error(`Não foi possível extrair o pacote uv (código ${extraction.status})`);
 
