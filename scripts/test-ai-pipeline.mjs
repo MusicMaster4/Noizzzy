@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { terminateProcessTree } = require("../electron/worker.cjs");
+const { separatorModel } = require("../electron/lib/platform.cjs");
 const ffmpeg = path.join(root, "build-tools", "media", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
 const ffprobe = path.join(root, "build-tools", "media", process.platform === "win32" ? "ffprobe.exe" : "ffprobe");
 const worker = path.join(root, "dist-worker", process.platform === "win32" ? "noizzzy-worker.exe" : "noizzzy-worker");
@@ -49,6 +50,7 @@ const child = spawn(worker, [], {
     VOICE_MODEL_DIR: modelDir,
     VOICE_FFMPEG: ffmpeg,
     VOICE_FFPROBE: ffprobe,
+    VOICE_SEPARATOR_MODEL: separatorModel(),
     PATH: [path.dirname(ffmpeg), process.env.PATH].filter(Boolean).join(path.delimiter),
     VOICE_SEPARATOR_PYTHON: separatorPython,
     VOICE_SEPARATOR_RUNNER: path.join(root, "worker", "voice_worker", "separator_bridge.py"),

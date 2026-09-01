@@ -4,6 +4,7 @@ const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFile, spawn, spawnSync } = require("node:child_process");
+const { separatorModel } = require("./lib/platform.cjs");
 
 const API_PORT = 35592;
 const API_URL = `http://127.0.0.1:${API_PORT}`;
@@ -118,6 +119,7 @@ class WorkerManager extends EventEmitter {
       VOICE_MODEL_DIR: modelRoot,
       VOICE_FFMPEG: ffmpeg,
       VOICE_FFPROBE: ffprobe,
+      VOICE_SEPARATOR_MODEL: separatorModel(),
       PATH: pathWithBundledMedia(ffmpeg),
       VOICE_CORS_ORIGINS: "null,http://127.0.0.1:27295,http://localhost:27295",
       VOICE_SEPARATOR_DEVICE: process.platform === "win32" && this.runtime.hasNvidia ? "cuda" : "auto",

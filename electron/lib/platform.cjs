@@ -23,6 +23,12 @@ function pythonExecutable(environment, platform = process.platform) {
   return path.join(environment, platform === "win32" ? "Scripts/python.exe" : "bin/python");
 }
 
+function separatorModel(platform = process.platform) {
+  return platform === "darwin"
+    ? "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"
+    : "vocals_mel_band_roformer.ckpt";
+}
+
 function platformLabel(platform = process.platform, arch = process.arch, hasNvidia = false) {
   if (platform === "win32" && hasNvidia) return "NVIDIA CUDA · LOCAL";
   if (platform === "win32") return "CPU WINDOWS · LOCAL";
@@ -110,5 +116,6 @@ module.exports = {
   pythonVersion,
   runtimeIsReady,
   runtimePaths,
+  separatorModel,
   separatorRequirements
 };

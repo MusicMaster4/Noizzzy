@@ -11,6 +11,7 @@ const {
   pythonVersion,
   runtimeIsReady,
   runtimePaths,
+  separatorModel,
   separatorRequirements
 } = require("../lib/platform.cjs");
 
@@ -18,6 +19,8 @@ test("selects architecture-compatible runtimes", () => {
   assert.equal(pythonVersion("darwin", "x64"), "3.11");
   assert.equal(pythonVersion("darwin", "arm64"), "3.11");
   assert.equal(pythonVersion("win32", "x64"), "3.12");
+  assert.equal(separatorModel("win32"), "vocals_mel_band_roformer.ckpt");
+  assert.equal(separatorModel("darwin"), "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt");
   assert.equal(platformLabel("win32", "x64", true), "NVIDIA CUDA · LOCAL");
   assert.equal(platformLabel("darwin", "arm64", false), "APPLE SILICON · LOCAL");
 });
