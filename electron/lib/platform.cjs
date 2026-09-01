@@ -64,6 +64,8 @@ function separatorRequirements({ platform = process.platform, arch = process.arc
       "torch==2.2.2",
       "torchaudio==2.2.2",
       `audio-separator[cpu]==${ML_VERSIONS.audioSeparatorMac}`,
+      "numba==0.61.2",
+      "llvmlite==0.44.0",
       "audioread>=3.1,<4"
     ];
   }

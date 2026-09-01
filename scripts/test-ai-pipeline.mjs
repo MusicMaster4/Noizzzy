@@ -49,6 +49,7 @@ const child = spawn(worker, [], {
     VOICE_MODEL_DIR: modelDir,
     VOICE_FFMPEG: ffmpeg,
     VOICE_FFPROBE: ffprobe,
+    PATH: [path.dirname(ffmpeg), process.env.PATH].filter(Boolean).join(path.delimiter),
     VOICE_SEPARATOR_PYTHON: separatorPython,
     VOICE_SEPARATOR_RUNNER: path.join(root, "worker", "voice_worker", "separator_bridge.py"),
     VOICE_ENHANCER_PYTHON: enhancerPython,

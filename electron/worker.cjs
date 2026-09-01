@@ -56,6 +56,10 @@ function existing(paths) {
   return paths.find((candidate) => candidate && fs.existsSync(candidate));
 }
 
+function pathWithBundledMedia(ffmpeg, currentPath = process.env.PATH || "") {
+  return [path.dirname(ffmpeg), currentPath].filter(Boolean).join(path.delimiter);
+}
+
 class WorkerManager extends EventEmitter {
   constructor({ app, runtime, logger }) {
     super();
@@ -114,6 +118,7 @@ class WorkerManager extends EventEmitter {
       VOICE_MODEL_DIR: modelRoot,
       VOICE_FFMPEG: ffmpeg,
       VOICE_FFPROBE: ffprobe,
+      PATH: pathWithBundledMedia(ffmpeg),
       VOICE_CORS_ORIGINS: "null,http://127.0.0.1:27295,http://localhost:27295",
       VOICE_SEPARATOR_DEVICE: process.platform === "win32" && this.runtime.hasNvidia ? "cuda" : "auto",
       HF_HOME: path.join(cacheRoot, "huggingface"),
@@ -217,4 +222,11 @@ class WorkerManager extends EventEmitter {
   }
 }
 
-module.exports = { API_PORT, API_URL, WorkerManager, terminateProcessTree, unpackedPath };
+module.exports = {
+  API_PORT,
+  API_URL,
+  WorkerManager,
+  pathWithBundledMedia,
+  terminateProcessTree,
+  unpackedPath
+};
