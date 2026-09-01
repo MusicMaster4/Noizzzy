@@ -121,6 +121,7 @@ async function bootstrap() {
     hasNvidia,
     logger: log
   });
+  if (runtime.snapshot().ready) void runtime.cleanupInstallCache();
   worker = new WorkerManager({ app, runtime, logger: log });
   runtime.on("status", (status) => broadcast("noizzzy:runtime-status", status));
   worker.on("status", (status) => broadcast("noizzzy:worker-status", status));

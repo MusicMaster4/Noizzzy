@@ -84,6 +84,39 @@ class RuntimeManager extends EventEmitter {
     });
   }
 
+  async runPython(executable, code, label, progress) {
+    this.update({ message: label, progress });
+    await new Promise((resolve, reject) => {
+      const child = spawn(executable, ["-c", code], {
+        env: { ...process.env, PYTHONUTF8: "1" },
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+      let detail = "";
+      const collect = (chunk) => {
+        const text = chunk.toString("utf8");
+        detail = `${detail}${text}`.slice(-12000);
+        this.logger.info(`[runtime-check] ${text.trimEnd()}`);
+      };
+      child.stdout.on("data", collect);
+      child.stderr.on("data", collect);
+      child.on("error", reject);
+      child.on("exit", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`${label} failed (exit code ${code}). ${detail.trim().split("\n").slice(-4).join(" ")}`));
+      });
+    });
+  }
+
+  async cleanupInstallCache() {
+    try {
+      await fs.promises.rm(this.paths.uvCache, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+      this.logger.info(`Removed runtime installation cache: ${this.paths.uvCache}`);
+    } catch (reason) {
+      this.logger.warn("Could not remove runtime installation cache", reason);
+    }
+  }
+
   async install() {
     if (this.status.ready) return this.snapshot();
     if (this.installPromise) return this.installPromise;
@@ -131,6 +164,18 @@ class RuntimeManager extends EventEmitter {
 
       await this.runUv(["pip", "check", "--python", this.paths.separatorPython], "Validating separator", 91);
       await this.runUv(["pip", "check", "--python", this.paths.enhancerPython], "Validating restorer", 96);
+      await this.runPython(
+        this.paths.separatorPython,
+        "import torch; from audio_separator.separator import Separator; print(torch.__version__, Separator.__name__)",
+        "Loading neural separator",
+        97
+      );
+      await this.runPython(
+        this.paths.enhancerPython,
+        "import torch; from clearvoice import ClearVoice; print(torch.__version__, ClearVoice.__name__)",
+        "Loading voice restorer",
+        98
+      );
 
       fs.writeFileSync(this.paths.marker, JSON.stringify({
         schema: RUNTIME_SCHEMA,
@@ -140,6 +185,8 @@ class RuntimeManager extends EventEmitter {
         acceleration: this.hasNvidia ? "cuda" : this.platform === "darwin" && this.arch === "arm64" ? "mps-cpu" : "cpu",
         installedAt: new Date().toISOString()
       }, null, 2));
+      this.update({ message: "Cleaning installation cache", progress: 99 });
+      await this.cleanupInstallCache();
       this.update({ ready: true, installing: false, progress: 100, message: "AI models ready", error: null });
       return this.snapshot();
     } catch (reason) {

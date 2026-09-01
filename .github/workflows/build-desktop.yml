@@ -159,9 +159,17 @@ jobs:
         shell: bash
         run: npm run test:worker-smoke
 
+      - name: Test packaged worker restart and port release
+        shell: bash
+        run: npm run test:worker-restart
+
       - name: Resolve target-specific AI runtime
         shell: bash
         run: npm run runtime:validate
+
+      - name: Process a video with real AI separation and restoration
+        shell: bash
+        run: npm run test:ai-pipeline
 
       - name: Test packaged Electron application
         shell: bash

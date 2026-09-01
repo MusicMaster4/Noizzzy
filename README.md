@@ -71,6 +71,8 @@ As builds de macOS recebem assinatura ad-hoc para executar corretamente em Intel
 
 Em pushes para `main`, o workflow cria automaticamente a tag correspondente à versão do `package.json` e publica o GitHub Release somente depois que as três builds e todos os testes passam. A versão deve ser incrementada antes de cada merge em `main`; uma versão ou tag já publicada encerra o workflow com um erro explícito. Execuções manuais apenas validam e geram artifacts, sem publicar uma versão.
 
+Cada build nativa instala o runtime de IA da plataforma, importa PyTorch, audio-separator e ClearVoice, reinicia o worker empacotado e processa um MP4 real de ponta a ponta com separação, restauração, mastering e remux antes de autorizar a publicação.
+
 ## Dados locais
 
 - Jobs e resultados: diretório `data` dentro do `userData` do Electron.

@@ -8,6 +8,46 @@ const { execFile, spawn, spawnSync } = require("node:child_process");
 const API_PORT = 35592;
 const API_URL = `http://127.0.0.1:${API_PORT}`;
 
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function terminateProcessTree(child, { platform = process.platform, timeoutMs = 10000 } = {}) {
+  if (!child || child.exitCode !== null) return;
+  if (platform === "win32" && child.pid) {
+    await new Promise((resolve, reject) => {
+      execFile(
+        "taskkill.exe",
+        ["/pid", String(child.pid), "/t", "/f"],
+        { windowsHide: true, timeout: timeoutMs },
+        (error) => {
+          if (error && child.exitCode === null) reject(error);
+          else resolve();
+        }
+      );
+    });
+    return;
+  }
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      if (child.exitCode === null) child.kill("SIGKILL");
+      finish();
+    }, timeoutMs);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      finish();
+    });
+    child.kill("SIGTERM");
+  });
+}
+
 function unpackedPath(value) {
   return value?.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
 }
@@ -96,21 +136,22 @@ class WorkerManager extends EventEmitter {
     this.stopping = false;
     this.update({ ready: false, message: "Starting local processor", error: null });
     this.logger.info(`Starting worker: ${target.command}`);
-    this.child = spawn(target.command, target.args, {
+    const child = spawn(target.command, target.args, {
       cwd: target.cwd,
       env: this.environment(),
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"]
     });
-    this.child.stdout.on("data", (chunk) => this.logger.info(`[worker] ${chunk.toString("utf8").trimEnd()}`));
-    this.child.stderr.on("data", (chunk) => this.logger.warn(`[worker] ${chunk.toString("utf8").trimEnd()}`));
-    this.child.on("error", (reason) => {
+    this.child = child;
+    child.stdout.on("data", (chunk) => this.logger.info(`[worker] ${chunk.toString("utf8").trimEnd()}`));
+    child.stderr.on("data", (chunk) => this.logger.warn(`[worker] ${chunk.toString("utf8").trimEnd()}`));
+    child.on("error", (reason) => {
       this.logger.error("Could not start worker", reason);
       this.update({ ready: false, message: "Local processor unavailable", error: reason.message });
     });
-    this.child.on("exit", (code, signal) => {
+    child.on("exit", (code, signal) => {
       this.logger.info(`Worker exited: code=${code} signal=${signal}`);
-      this.child = null;
+      if (this.child === child) this.child = null;
       if (!this.stopping) this.update({ ready: false, message: "The local processor exited", error: `Code ${code ?? signal}` });
     });
     return this.waitUntilHealthy();
@@ -141,26 +182,26 @@ class WorkerManager extends EventEmitter {
     return this.start();
   }
 
+  async waitUntilPortIsFree(timeoutMs = 10000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(500) });
+      } catch {
+        return;
+      }
+      await wait(100);
+    }
+    throw new Error(`Local processor did not release port ${API_PORT}`);
+  }
+
   async stop() {
     const child = this.child;
     if (!child) return;
     this.stopping = true;
     this.child = null;
-    await new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        if (process.platform === "win32" && child.pid) {
-          execFile("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true }, () => resolve());
-        } else {
-          child.kill("SIGKILL");
-          resolve();
-        }
-      }, 5000);
-      child.once("exit", () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      child.kill("SIGTERM");
-    });
+    await terminateProcessTree(child);
+    await this.waitUntilPortIsFree();
   }
 
   stopNow() {
@@ -176,4 +217,4 @@ class WorkerManager extends EventEmitter {
   }
 }
 
-module.exports = { API_PORT, API_URL, WorkerManager, unpackedPath };
+module.exports = { API_PORT, API_URL, WorkerManager, terminateProcessTree, unpackedPath };

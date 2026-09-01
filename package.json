@@ -1,6 +1,6 @@
 {
   "name": "noizzzy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Noizzzy — local voice isolation, restoration, and mastering",
   "private": true,
   "main": "electron/main.cjs",
@@ -23,6 +23,8 @@
     "test:e2e": "npm run web:build && playwright test",
     "test:e2e:packaged": "node scripts/test-packaged.mjs",
     "test:worker-smoke": "node scripts/smoke-worker.mjs",
+    "test:worker-restart": "node scripts/test-worker-restart.mjs",
+    "test:ai-pipeline": "node scripts/test-ai-pipeline.mjs",
     "verify:artifacts": "node scripts/verify-artifacts.mjs",
     "runtime:validate": "node scripts/validate-runtime-requirements.mjs"
   },
