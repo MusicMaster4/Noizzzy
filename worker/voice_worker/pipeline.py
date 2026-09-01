@@ -19,6 +19,7 @@ from .media import (
     run_command,
 )
 from .models import PROFILES, Job, LoudnessMetrics, OutputInfo
+from .separator_bridge import separator_init_options
 
 ProgressCallback = Callable[[str, float], Awaitable[None]]
 
@@ -213,13 +214,9 @@ class VoicePipeline:
         )
 
         self.settings.model_dir.mkdir(parents=True, exist_ok=True)
-        separator = Separator(
-            log_level=logging.INFO,
-            model_file_dir=str(self.settings.model_dir.resolve()),
-            output_dir=str(output_dir),
-            output_format="WAV",
-            use_autocast=use_autocast,
-        )
+        separator = Separator(**separator_init_options(
+            Separator, self.settings.model_dir, output_dir, use_autocast
+        ))
         separator.load_model(model_filename=self.settings.separator_model)
         returned = separator.separate(str(source))
         paths: list[Path] = []

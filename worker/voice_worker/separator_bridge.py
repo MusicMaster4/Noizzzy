@@ -1,10 +1,23 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import logging
 import re
 import shutil
 from pathlib import Path
+
+
+def separator_init_options(separator_type: type, model_dir: Path, output_dir: Path, use_autocast: bool) -> dict:
+    options = {
+        "log_level": logging.INFO,
+        "model_file_dir": str(model_dir.resolve()),
+        "output_dir": str(output_dir.resolve()),
+        "output_format": "WAV",
+    }
+    if "use_autocast" in inspect.signature(separator_type).parameters:
+        options["use_autocast"] = use_autocast
+    return options
 
 
 def stem_label(path: Path) -> str | None:
@@ -47,13 +60,9 @@ def main() -> None:
     use_autocast = args.device.lower() == "cuda" or (
         args.device.lower() == "auto" and torch.cuda.is_available()
     )
-    separator = Separator(
-        log_level=logging.INFO,
-        model_file_dir=str(args.model_dir.resolve()),
-        output_dir=str(args.output_dir.resolve()),
-        output_format="WAV",
-        use_autocast=use_autocast,
-    )
+    separator = Separator(**separator_init_options(
+        Separator, args.model_dir, args.output_dir, use_autocast
+    ))
     separator.load_model(model_filename=args.model)
     returned = separator.separate(str(args.source.resolve()))
     candidates: list[Path] = []

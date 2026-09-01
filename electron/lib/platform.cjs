@@ -87,7 +87,9 @@ function enhancerRequirements({ platform = process.platform, arch = process.arch
       "torch==2.2.2",
       "torchaudio==2.2.2",
       `clearvoice==${ML_VERSIONS.clearvoice}`,
-      `numpy==${ML_VERSIONS.numpy}`
+      `numpy==${ML_VERSIONS.numpy}`,
+      "numba==0.61.2",
+      "llvmlite==0.44.0"
     ];
   }
   return [

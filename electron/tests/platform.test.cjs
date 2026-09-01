@@ -30,6 +30,8 @@ test("installs CUDA only on Windows with NVIDIA", () => {
   assert.ok(separatorRequirements({ platform: "darwin", arch: "x64", hasNvidia: false }).includes("numba==0.61.2"));
   assert.ok(separatorRequirements({ platform: "darwin", arch: "x64", hasNvidia: false }).includes("llvmlite==0.44.0"));
   assert.ok(enhancerRequirements({ platform: "darwin", arch: "x64" }).includes("torch==2.2.2"));
+  assert.ok(enhancerRequirements({ platform: "darwin", arch: "x64" }).includes("numba==0.61.2"));
+  assert.ok(enhancerRequirements({ platform: "darwin", arch: "x64" }).includes("llvmlite==0.44.0"));
 });
 
 test("marks the runtime ready only with executables and a compatible manifest", () => {
