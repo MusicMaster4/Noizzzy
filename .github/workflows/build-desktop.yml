@@ -153,7 +153,27 @@ jobs:
         shell: bash
         env:
           NOIZZZY_BUILD_PYTHON: python
-        run: npm run ${{ matrix.command }}
+        run: |
+          if [[ "${RUNNER_OS}" != "macOS" ]]; then
+            npm run ${{ matrix.command }}
+            exit 0
+          fi
+
+          for attempt in 1 2; do
+            if npm run ${{ matrix.command }}; then
+              exit 0
+            fi
+
+            if [[ "${attempt}" -eq 2 ]]; then
+              echo "::error::macOS installer build failed after ${attempt} attempts."
+              exit 1
+            fi
+
+            echo "::warning::macOS installer build failed; detaching stale Noizzzy DMG volumes before retrying."
+            while IFS= read -r device; do
+              [[ -z "${device}" ]] || hdiutil detach "${device}" -force || true
+            done < <(hdiutil info | awk '/\/Volumes\/Noizzzy/{print $1}')
+          done
 
       - name: Test packaged worker with real FFmpeg processing
         shell: bash

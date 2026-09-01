@@ -27,13 +27,14 @@ const input = process.env.NOIZZZY_AI_TEST_INPUT || path.join(temporary, "ai-smok
 const modelDir = process.env.NOIZZZY_MODEL_DIR || path.join(temporary, "models");
 const port = 35594;
 const api = `http://127.0.0.1:${port}`;
+const fixtureSeconds = 12;
 
 if (!process.env.NOIZZZY_AI_TEST_INPUT) {
   const generated = spawnSync(ffmpeg, [
     "-y", "-hide_banner", "-loglevel", "error",
-    "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24:duration=2",
-    "-f", "lavfi", "-i", "sine=frequency=220:sample_rate=44100:duration=2",
-    "-f", "lavfi", "-i", "sine=frequency=880:sample_rate=44100:duration=2",
+    "-f", "lavfi", "-i", `testsrc2=size=320x180:rate=24:duration=${fixtureSeconds}`,
+    "-f", "lavfi", "-i", `sine=frequency=220:sample_rate=44100:duration=${fixtureSeconds}`,
+    "-f", "lavfi", "-i", `sine=frequency=880:sample_rate=44100:duration=${fixtureSeconds}`,
     "-filter_complex", "[1:a][2:a]amix=inputs=2:normalize=0[a]",
     "-map", "0:v:0", "-map", "[a]", "-c:v", "libx264", "-preset", "ultrafast",
     "-c:a", "aac", "-shortest", input
