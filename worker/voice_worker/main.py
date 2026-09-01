@@ -13,6 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, sta
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from . import __version__
 from .config import Settings, get_settings
 from .jobs import JobManager
 from .media import ProcessingError, probe_media
@@ -73,7 +74,7 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
 
     application = FastAPI(
         title="Noizzzy Worker",
-        version="1.0.1",
+        version=__version__,
         lifespan=lifespan,
     )
     application.add_middleware(

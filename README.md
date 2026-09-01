@@ -61,7 +61,7 @@ npm run dist:mac-intel # macOS Intel
 
 ## GitHub Actions
 
-O workflow [build-desktop.yml](.github/workflows/build-desktop.yml) é executado em todo push e também manualmente. Primeiro roda lint, build e testes; depois cria três builds em hardware nativo e publica os instaladores como artifacts por 14 dias:
+O workflow [build-desktop.yml](.github/workflows/build-desktop.yml) é executado em pushes para branches e também manualmente. Primeiro roda lint, build e testes; depois cria três builds em hardware nativo e publica os instaladores como artifacts por 14 dias:
 
 - `Noizzzy-windows-x64-*`
 - `Noizzzy-macos-arm64-*`
@@ -69,7 +69,7 @@ O workflow [build-desktop.yml](.github/workflows/build-desktop.yml) é executado
 
 As builds de macOS recebem assinatura ad-hoc para executar corretamente em Intel e Apple Silicon. Para distribuição sem o aviso do Gatekeeper é necessário um certificado Apple Developer ID e notarização; essas credenciais não pertencem ao repositório e devem ser configuradas como secrets antes de uma distribuição pública assinada.
 
-Ao enviar uma tag `v*` (por exemplo, `v1.0.0`), o mesmo workflow só publica o GitHub Release depois que as três builds e todos os testes passam.
+Em pushes para `main`, o workflow cria automaticamente a tag correspondente à versão do `package.json` e publica o GitHub Release somente depois que as três builds e todos os testes passam. A versão deve ser incrementada antes de cada merge em `main`; uma versão ou tag já publicada encerra o workflow com um erro explícito. Execuções manuais apenas validam e geram artifacts, sem publicar uma versão.
 
 ## Dados locais
 
