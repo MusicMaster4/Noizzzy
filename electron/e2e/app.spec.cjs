@@ -27,7 +27,7 @@ test("opens the desktop app, identifies the platform, and connects to the worker
     expect(info.worker.ready).toBe(true);
     const upload = window.locator('input[type="file"]');
     await expect(upload).toHaveAttribute("accept", /audio\/\*/);
-    await expect(upload).not.toHaveAttribute("accept", /video/);
+    await expect(upload).toHaveAttribute("accept", /video\/mp4/);
     await window.evaluate(() => {
       const transfer = new DataTransfer();
       transfer.items.add(new File(["RIFF-test"], "noisy-voice.wav", { type: "audio/wav" }));
@@ -38,6 +38,14 @@ test("opens the desktop app, identifies the platform, and connects to the worker
     await expect(window.getByRole("button", { name: /Clean audio for streaming/i })).toBeVisible();
     await expect(window.getByText("Voice already clean")).toHaveCount(0);
     await expect(window.getByText("Broadcast EBU R128")).toHaveCount(0);
+    await window.getByRole("button", { name: "Remove file" }).click();
+    await window.evaluate(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(["mp4-test"], "interview.mp4", { type: "video/mp4" }));
+      document.querySelector(".dropzone").dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: transfer }));
+    });
+    await expect(window.getByText(/^MP4 video/)).toBeVisible();
+    await expect(window.getByRole("button", { name: /Clean the video audio/i })).toBeVisible();
     const processed = await window.evaluate(async () => {
       const sampleRate = 48000; const samples = sampleRate / 2;
       const buffer = new ArrayBuffer(44 + samples * 2); const view = new DataView(buffer);

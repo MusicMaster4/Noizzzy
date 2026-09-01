@@ -140,3 +140,56 @@ def test_pipeline_skips_separator_for_isolated_voice(tmp_path: Path, monkeypatch
     assert "preserving_ready_voice" in stages
     assert not any("separat" in stage for stage in stages)
     assert not any("enhanc" in stage for stage in stages)
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg") or not shutil.which("ffprobe"), reason="FFmpeg não instalado")
+def test_mp4_produces_clean_audio_and_video_with_replaced_audio(tmp_path: Path) -> None:
+    source = tmp_path / "clip.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "lavfi", "-i", "color=c=black:s=320x180:d=0.8:r=24",
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=0.8",
+            "-filter:a", "volume=0.1", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest", str(source),
+        ],
+        check=True,
+    )
+    job = Job(
+        id="video",
+        input_name="clip.mp4",
+        input_kind="video",
+        profile="streaming",
+        directory=tmp_path,
+        source_path=source,
+        separate_voice=False,
+    )
+    pipeline = VoicePipeline(Settings(data_dir=tmp_path, job_ttl_hours=0))
+
+    async def run_pipeline():
+        stages: list[str] = []
+
+        async def progress(stage: str, value: float) -> None:
+            stages.append(stage)
+
+        result = await pipeline.process(job, asyncio.Event(), progress)
+        return result, stages
+
+    (_, after, outputs), stages = asyncio.run(run_pipeline())
+    assert after.integrated_lufs == pytest.approx(-16, abs=0.2)
+    assert [output.kind for output in outputs] == ["audio", "video"]
+    assert [output.mime for output in outputs] == ["audio/wav", "video/mp4"]
+    assert "remuxing_video" in stages
+
+    final_video = tmp_path / outputs[1].name
+    probe = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1", str(final_video),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.stdout.splitlines() == ["video", "audio"]
+    assert final_video.stat().st_size > 1000

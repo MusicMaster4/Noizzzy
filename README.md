@@ -1,6 +1,6 @@
 # Noizzzy
 
-Aplicativo desktop local para Windows e macOS que remove música e ruído, restaura a voz e finaliza áudio para streaming. A interface é Electron + Next.js estático; a API e todo o processamento rodam na própria máquina. Nenhuma mídia é enviada para serviços externos.
+Aplicativo desktop local para Windows e macOS que remove música e ruído, restaura a voz e finaliza áudio de arquivos de áudio ou vídeos MP4 para streaming. A interface é Electron + Next.js estático; a API e todo o processamento rodam na própria máquina. Nenhuma mídia é enviada para serviços externos.
 
 ## Plataformas
 
@@ -12,16 +12,17 @@ Aplicativo desktop local para Windows e macOS que remove música e ruído, resta
 
 Cada instalador contém Electron, o worker FastAPI, FFmpeg, FFprobe e o gerenciador de Python `uv`. O usuário não precisa instalar Node.js, Python nem FFmpeg.
 
-A interface possui um único fluxo: o usuário arrasta um áudio e o Noizzzy assume automaticamente que há ruído de fundo, ativa separação e restauração e usa o perfil de streaming em −16 LUFS/−1,5 dBTP. Não há seletores de tratamento ou entrega. No primeiro uso, o app oferece a instalação guiada do runtime de IA. Essa instalação é separada porque PyTorch, CUDA e os modelos somam vários gigabytes e são diferentes em cada arquitetura. Os pesos do Mel-Band RoFormer e do MossFormer2 são baixados no primeiro processamento e permanecem em cache local.
+A interface possui um único fluxo: o usuário arrasta um arquivo de áudio ou vídeo MP4 e o Noizzzy assume automaticamente que há ruído de fundo, ativa separação e restauração e usa o perfil de streaming em −16 LUFS/−1,5 dBTP. Para MP4, o app entrega a voz tratada em WAV e uma cópia do vídeo com a faixa de áudio tratada. No primeiro uso, o app oferece a instalação guiada do runtime de IA. Essa instalação é separada porque PyTorch, CUDA e os modelos somam vários gigabytes e são diferentes em cada arquitetura. Os pesos do Mel-Band RoFormer e do MossFormer2 são baixados no primeiro processamento e permanecem em cache local.
 
 ## Pipeline
 
-1. FFmpeg valida o áudio enviado.
+1. FFmpeg valida a mídia enviada e extrai a primeira faixa de áudio.
 2. Mel-Band RoFormer separa voz e acompanhamento.
 3. MossFormer2_SE_48K restaura a voz em 48 kHz.
 4. O DSP de diálogo aplica high-pass suave, de-esser e compressão soft-knee.
 5. `loudnorm` em dois passes finaliza em −16 LUFS/−1,5 dBTP para streaming.
 6. O app entrega a voz limpa em WAV PCM 24-bit e o acompanhamento sem voz quando disponível.
+7. Para entradas MP4, o app também preserva o vídeo e substitui sua faixa de áudio pela voz tratada.
 
 ## Desenvolvimento
 
