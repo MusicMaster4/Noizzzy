@@ -62,7 +62,7 @@ class JobManager:
             metrics_before, metrics_after, outputs = await self.pipeline.process(job, event, progress)
             async with self._lock:
                 if event.is_set():
-                    raise JobCancelled("Processamento cancelado")
+                    raise JobCancelled("Processing cancelled")
                 job.metrics_before = metrics_before
                 job.metrics_after = metrics_after
                 job.outputs = outputs

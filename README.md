@@ -1,6 +1,6 @@
 # Noizzzy
 
-Aplicativo desktop local para Windows e macOS que isola voz, restaura detalhes e finaliza áudio ou vídeo com loudness consistente. A interface é Electron + Next.js estático; a API e todo o processamento rodam na própria máquina. Nenhuma mídia é enviada para serviços externos.
+Aplicativo desktop local para Windows e macOS que remove música e ruído, restaura a voz e finaliza áudio para streaming. A interface é Electron + Next.js estático; a API e todo o processamento rodam na própria máquina. Nenhuma mídia é enviada para serviços externos.
 
 ## Plataformas
 
@@ -12,18 +12,16 @@ Aplicativo desktop local para Windows e macOS que isola voz, restaura detalhes e
 
 Cada instalador contém Electron, o worker FastAPI, FFmpeg, FFprobe e o gerenciador de Python `uv`. O usuário não precisa instalar Node.js, Python nem FFmpeg.
 
-O núcleo de áudio funciona imediatamente no modo **Voz já pronta**. Para **Isolar e restaurar voz**, o Noizzzy oferece a instalação guiada do runtime de IA no primeiro uso. Essa instalação é separada do app porque PyTorch, CUDA e os modelos somam vários gigabytes e são diferentes em cada arquitetura. Os pesos do Mel-Band RoFormer e do MossFormer2 são baixados no primeiro processamento e permanecem em cache local.
+A interface possui um único fluxo: o usuário arrasta um áudio e o Noizzzy assume automaticamente que há ruído de fundo, ativa separação e restauração e usa o perfil de streaming em −16 LUFS/−1,5 dBTP. Não há seletores de tratamento ou entrega. No primeiro uso, o app oferece a instalação guiada do runtime de IA. Essa instalação é separada porque PyTorch, CUDA e os modelos somam vários gigabytes e são diferentes em cada arquitetura. Os pesos do Mel-Band RoFormer e do MossFormer2 são baixados no primeiro processamento e permanecem em cache local.
 
 ## Pipeline
 
-1. FFmpeg valida a mídia e extrai a primeira faixa de áudio.
+1. FFmpeg valida o áudio enviado.
 2. Mel-Band RoFormer separa voz e acompanhamento.
 3. MossFormer2_SE_48K restaura a voz em 48 kHz.
 4. O DSP de diálogo aplica high-pass suave, de-esser e compressão soft-knee.
-5. `loudnorm` em dois passes finaliza em −16 LUFS/−1,5 dBTP (streaming) ou −23 LUFS/−1 dBTP (EBU R128).
-6. O app entrega WAV PCM 24-bit e, para vídeos, MP4 com a imagem original e a nova faixa de voz.
-
-No modo **Voz já pronta**, separação, restauração e compressão são ignoradas. O app preserva timbre, efeitos e imagem estéreo, ajustando somente ganho e true peak.
+5. `loudnorm` em dois passes finaliza em −16 LUFS/−1,5 dBTP para streaming.
+6. O app entrega a voz limpa em WAV PCM 24-bit e o acompanhamento sem voz quando disponível.
 
 ## Desenvolvimento
 

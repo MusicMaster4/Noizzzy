@@ -29,7 +29,7 @@ class RuntimeManager extends EventEmitter {
       ready: runtimeIsReady(this.paths),
       installing: false,
       progress: runtimeIsReady(this.paths) ? 100 : 0,
-      message: runtimeIsReady(this.paths) ? "Modelos de IA prontos" : "Modelos de IA ainda não instalados",
+      message: runtimeIsReady(this.paths) ? "AI models ready" : "AI models not installed yet",
       error: null
     };
   }
@@ -79,7 +79,7 @@ class RuntimeManager extends EventEmitter {
       child.on("error", reject);
       child.on("exit", (code) => {
         if (code === 0) resolve();
-        else reject(new Error(`${label} falhou (código ${code}). ${detail.trim().split("\n").slice(-4).join(" ")}`));
+        else reject(new Error(`${label} failed (exit code ${code}). ${detail.trim().split("\n").slice(-4).join(" ")}`));
       });
     });
   }
@@ -95,11 +95,11 @@ class RuntimeManager extends EventEmitter {
 
   async performInstall() {
     fs.mkdirSync(this.paths.root, { recursive: true });
-    this.update({ installing: true, error: null, message: "Preparando o runtime local", progress: 2 });
+    this.update({ installing: true, error: null, message: "Preparing local runtime", progress: 2 });
     try {
       const version = pythonVersion(this.platform, this.arch);
-      await this.runUv(["python", "install", version], `Instalando Python ${version}`, 8);
-      await this.runUv(["venv", "--clear", "--python", version, this.paths.separatorEnvironment], "Criando ambiente do separador", 18);
+      await this.runUv(["python", "install", version], `Installing Python ${version}`, 8);
+      await this.runUv(["venv", "--clear", "--python", version, this.paths.separatorEnvironment], "Creating separator environment", 18);
 
       const separator = separatorRequirements({ platform: this.platform, arch: this.arch, hasNvidia: this.hasNvidia });
       if (this.platform === "win32") {
@@ -109,11 +109,11 @@ class RuntimeManager extends EventEmitter {
           `torchaudio==${ML_VERSIONS.torchaudio}`
         ];
         if (this.hasNvidia) torchArgs.push("--index-url", "https://download.pytorch.org/whl/cu128");
-        await this.runUv(torchArgs, this.hasNvidia ? "Instalando aceleração CUDA" : "Instalando PyTorch para CPU", 28);
+        await this.runUv(torchArgs, this.hasNvidia ? "Installing CUDA acceleration" : "Installing PyTorch for CPU", 28);
       }
-      await this.runUv(["pip", "install", "--python", this.paths.separatorPython, ...separator], "Instalando separação neural", 48);
+      await this.runUv(["pip", "install", "--python", this.paths.separatorPython, ...separator], "Installing neural separation", 48);
 
-      await this.runUv(["venv", "--clear", "--python", version, this.paths.enhancerEnvironment], "Criando ambiente do restaurador", 58);
+      await this.runUv(["venv", "--clear", "--python", version, this.paths.enhancerEnvironment], "Creating restoration environment", 58);
       if (this.platform === "win32") {
         const torchArgs = [
           "pip", "install", "--python", this.paths.enhancerPython,
@@ -121,16 +121,16 @@ class RuntimeManager extends EventEmitter {
           `torchaudio==${ML_VERSIONS.torchaudio}`
         ];
         if (this.hasNvidia) torchArgs.push("--index-url", "https://download.pytorch.org/whl/cu128");
-        await this.runUv(torchArgs, this.hasNvidia ? "Preparando CUDA para restauração" : "Preparando restauração em CPU", 68);
+        await this.runUv(torchArgs, this.hasNvidia ? "Preparing CUDA restoration" : "Preparing CPU restoration", 68);
       }
       await this.runUv(
         ["pip", "install", "--python", this.paths.enhancerPython, ...enhancerRequirements({ platform: this.platform, arch: this.arch })],
-        "Instalando restauração de voz",
+        "Installing voice restoration",
         84
       );
 
-      await this.runUv(["pip", "check", "--python", this.paths.separatorPython], "Validando o separador", 91);
-      await this.runUv(["pip", "check", "--python", this.paths.enhancerPython], "Validando o restaurador", 96);
+      await this.runUv(["pip", "check", "--python", this.paths.separatorPython], "Validating separator", 91);
+      await this.runUv(["pip", "check", "--python", this.paths.enhancerPython], "Validating restorer", 96);
 
       fs.writeFileSync(this.paths.marker, JSON.stringify({
         schema: RUNTIME_SCHEMA,
@@ -140,12 +140,12 @@ class RuntimeManager extends EventEmitter {
         acceleration: this.hasNvidia ? "cuda" : this.platform === "darwin" && this.arch === "arm64" ? "mps-cpu" : "cpu",
         installedAt: new Date().toISOString()
       }, null, 2));
-      this.update({ ready: true, installing: false, progress: 100, message: "Modelos de IA prontos", error: null });
+      this.update({ ready: true, installing: false, progress: 100, message: "AI models ready", error: null });
       return this.snapshot();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
-      this.logger.error("Falha ao instalar runtime de IA", reason);
-      this.update({ ready: false, installing: false, message: "A instalação dos modelos falhou", error: message });
+      this.logger.error("Failed to install AI runtime", reason);
+      this.update({ ready: false, installing: false, message: "Model installation failed", error: message });
       throw reason;
     }
   }

@@ -42,7 +42,7 @@ async def stream_upload(upload: UploadFile, destination: Path, max_bytes: int) -
                 if total > max_bytes:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=f"Arquivo excede o limite de {max_bytes // (1024 * 1024)} MB",
+                        detail=f"File exceeds the {max_bytes // (1024 * 1024)} MB limit",
                     )
                 handle.write(chunk)
     except Exception:
@@ -52,7 +52,7 @@ async def stream_upload(upload: UploadFile, destination: Path, max_bytes: int) -
         await upload.close()
     if total == 0:
         destination.unlink(missing_ok=True)
-        raise HTTPException(status_code=400, detail="Arquivo vazio")
+        raise HTTPException(status_code=400, detail="Empty file")
     return total
 
 
@@ -73,7 +73,7 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
 
     application = FastAPI(
         title="Noizzzy Worker",
-        version="1.0.0",
+        version="1.0.1",
         lifespan=lifespan,
     )
     application.add_middleware(
@@ -99,7 +99,7 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
         suffix = Path(original_name).suffix.lower()
         if suffix not in ALLOWED_SUFFIXES:
             await file.close()
-            raise HTTPException(status_code=415, detail=f"Extensão de mídia não suportada: {suffix or '(ausente)'}")
+            raise HTTPException(status_code=415, detail=f"Unsupported media extension: {suffix or '(missing)'}")
 
         job_id = uuid4().hex
         directory = configured.data_dir.resolve() / job_id
@@ -131,21 +131,21 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
     async def get_job(job_id: str, request: Request) -> JobResponse:
         response = await request.app.state.manager.response(job_id)
         if response is None:
-            raise HTTPException(status_code=404, detail="Job não encontrado")
+            raise HTTPException(status_code=404, detail="Job not found")
         return response
 
     @application.delete("/api/jobs/{job_id}", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
     async def cancel_job(job_id: str, request: Request) -> JobResponse:
         response = await request.app.state.manager.cancel(job_id)
         if response is None:
-            raise HTTPException(status_code=404, detail="Job não encontrado")
+            raise HTTPException(status_code=404, detail="Job not found")
         return response
 
     @application.get("/api/jobs/{job_id}/source")
     async def get_source(job_id: str, request: Request) -> FileResponse:
         job = await request.app.state.manager.get(job_id)
         if job is None or not job.source_path.is_file():
-            raise HTTPException(status_code=404, detail="Fonte não encontrada")
+            raise HTTPException(status_code=404, detail="Source not found")
         return FileResponse(
             job.source_path,
             filename=job.input_name,
@@ -156,13 +156,13 @@ def create_app(settings: Settings | None = None, pipeline: VoicePipeline | None 
     async def get_output(job_id: str, output_name: str, request: Request) -> FileResponse:
         job = await request.app.state.manager.get(job_id)
         if job is None:
-            raise HTTPException(status_code=404, detail="Job não encontrado")
+            raise HTTPException(status_code=404, detail="Job not found")
         output = next((item for item in job.outputs if item.name == output_name), None)
         if output is None:
-            raise HTTPException(status_code=404, detail="Saída não encontrada")
+            raise HTTPException(status_code=404, detail="Output not found")
         path = job.directory / output.name
         if not path.is_file() or path.parent.resolve() != job.directory.resolve():
-            raise HTTPException(status_code=404, detail="Saída não encontrada")
+            raise HTTPException(status_code=404, detail="Output not found")
         return FileResponse(path, filename=output.name, media_type=output.mime)
 
     return application

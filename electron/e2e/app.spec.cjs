@@ -3,7 +3,7 @@
 const path = require("node:path");
 const { test, expect, _electron: electron } = require("@playwright/test");
 
-test("abre o desktop, identifica a plataforma e conecta ao worker", async () => {
+test("opens the desktop app, identifies the platform, and connects to the worker", async () => {
   const root = path.resolve(__dirname, "..", "..");
   const localPython = path.join(root, "worker", process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
   const packaged = process.env.NOIZZZY_PACKAGED_EXECUTABLE;
@@ -18,13 +18,26 @@ test("abre o desktop, identifica a plataforma e conecta ao worker", async () => 
   try {
     const window = await application.firstWindow();
     await expect(window).toHaveTitle(/Noizzzy/);
-    await expect(window.getByLabel(/Noizzzy, início/i)).toBeVisible();
+    await expect(window.getByLabel(/Noizzzy, home/i)).toBeVisible();
     await expect(window.getByText(/LOCAL/).first()).toBeVisible();
     const health = await window.evaluate(async () => (await fetch("http://127.0.0.1:35592/health")).json());
     expect(health).toEqual({ status: "ok" });
     const info = await window.evaluate(() => window.noizzzy.getAppInfo());
     expect(info.name).toBe("Noizzzy");
     expect(info.worker.ready).toBe(true);
+    const upload = window.locator('input[type="file"]');
+    await expect(upload).toHaveAttribute("accept", /audio\/\*/);
+    await expect(upload).not.toHaveAttribute("accept", /video/);
+    await window.evaluate(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(["RIFF-test"], "noisy-voice.wav", { type: "audio/wav" }));
+      document.querySelector(".dropzone").dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: transfer }));
+    });
+    await expect(window.getByText("Complete streaming cleanup")).toBeVisible();
+    await expect(window.getByText(/We assume background noise/)).toBeVisible();
+    await expect(window.getByRole("button", { name: /Clean audio for streaming/i })).toBeVisible();
+    await expect(window.getByText("Voice already clean")).toHaveCount(0);
+    await expect(window.getByText("Broadcast EBU R128")).toHaveCount(0);
     const processed = await window.evaluate(async () => {
       const sampleRate = 48000; const samples = sampleRate / 2;
       const buffer = new ArrayBuffer(44 + samples * 2); const view = new DataView(buffer);

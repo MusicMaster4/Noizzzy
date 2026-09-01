@@ -20,4 +20,4 @@ Variáveis principais:
 - `VOICE_ENHANCER_PYTHON`, `VOICE_ENHANCER_RUNNER`
 - `VOICE_ALLOW_DEVELOPMENT_FALLBACK` (desativado por padrão)
 
-O endpoint `POST /api/jobs` aceita `file`, `profile` (`streaming` ou `broadcast`) e `separate_voice`. Jobs terminais e seus arquivos são removidos de acordo com `VOICE_JOB_TTL_HOURS`.
+O endpoint `POST /api/jobs` aceita `file`, `profile` (`streaming` ou `broadcast`) e `separate_voice`. Quando os campos opcionais são omitidos, usa automaticamente `profile=streaming` e `separate_voice=true`, como a interface desktop. Jobs terminais e seus arquivos são removidos de acordo com `VOICE_JOB_TTL_HOURS`.

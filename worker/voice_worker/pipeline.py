@@ -162,22 +162,22 @@ class VoicePipeline:
                     output_dir / "noizzzy_instrumental.wav",
                 )
                 if not all(path.is_file() and path.stat().st_size for path in result):
-                    raise ProcessingError("O separador isolado não produziu os dois stems esperados")
+                    raise ProcessingError("The isolated separator did not produce the two expected stems")
             else:
                 result = await asyncio.to_thread(self._run_audio_separator, source, output_dir)
             if cancel_event.is_set():
-                raise JobCancelled("Processamento cancelado")
+                raise JobCancelled("Processing cancelled")
             return result
         except JobCancelled:
             raise
         except Exception as exc:
             if not self.settings.allow_development_fallback:
                 raise ProcessingError(
-                    "Mel-Band RoFormer indisponível. Instale o extra 'separation' e confirme o modelo "
-                    f"{self.settings.separator_model!r}. Fallback de desenvolvimento está desativado. "
-                    f"Detalhe: {exc}"
+                    "Mel-Band RoFormer is unavailable. Install the 'separation' extra and verify model "
+                    f"{self.settings.separator_model!r}. Development fallback is disabled. "
+                    f"Details: {exc}"
                 ) from exc
-            logging.getLogger(__name__).warning("Usando fallback de separação apenas para desenvolvimento: %s", exc)
+            logging.getLogger(__name__).warning("Using development-only separation fallback: %s", exc)
             await progress("development_fallback_no_stem_separation", 0.42)
             destination = output_dir / "vocals_development_fallback.wav"
             await run_command(
@@ -249,7 +249,7 @@ class VoicePipeline:
         if instrumental is None and len(remaining) == 1:
             instrumental = remaining[0]
         if vocal is None or instrumental is None or vocal == instrumental:
-            raise ProcessingError("audio-separator não produziu os stems de voz e instrumental esperados")
+            raise ProcessingError("audio-separator did not produce the expected vocal and instrumental stems")
         return vocal, instrumental
 
     async def _enhance(
@@ -275,18 +275,18 @@ class VoicePipeline:
             else:
                 await asyncio.to_thread(self._run_clearer_voice, source, destination)
             if cancel_event.is_set():
-                raise JobCancelled("Processamento cancelado")
+                raise JobCancelled("Processing cancelled")
             if not destination.exists() or destination.stat().st_size == 0:
-                raise ProcessingError("ClearerVoice não produziu o WAV esperado")
+                raise ProcessingError("ClearerVoice did not produce the expected WAV file")
         except JobCancelled:
             raise
         except Exception as exc:
             if not self.settings.allow_development_fallback:
                 raise ProcessingError(
-                    "MossFormer2_SE_48K indisponível. Instale ClearerVoice-Studio e seus pesos. "
-                    f"Fallback de desenvolvimento está desativado. Detalhe: {exc}"
+                    "MossFormer2_SE_48K is unavailable. Install ClearerVoice-Studio and its weights. "
+                    f"Development fallback is disabled. Details: {exc}"
                 ) from exc
-            logging.getLogger(__name__).warning("Usando fallback de enhancement apenas para desenvolvimento: %s", exc)
+            logging.getLogger(__name__).warning("Using development-only enhancement fallback: %s", exc)
             await progress("development_fallback_ffmpeg_enhancement", 0.66)
             await run_command(
                 [

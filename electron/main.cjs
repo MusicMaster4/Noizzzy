@@ -46,8 +46,8 @@ function createMenu() {
       { role: "about" }, { type: "separator" }, { role: "hide" }, { role: "hideOthers" },
       { type: "separator" }, { role: "quit" }
     ] },
-    { label: "Editar", submenu: [{ role: "undo" }, { role: "redo" }, { type: "separator" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
-    { label: "Janela", submenu: [{ role: "minimize" }, { role: "zoom" }, { role: "front" }] }
+    { label: "Edit", submenu: [{ role: "undo" }, { role: "redo" }, { type: "separator" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
+    { label: "Window", submenu: [{ role: "minimize" }, { role: "zoom" }, { role: "front" }] }
   ]));
 }
 
@@ -129,14 +129,14 @@ async function bootstrap() {
   try {
     await worker.start();
   } catch (reason) {
-    log.error("Worker não ficou pronto durante a inicialização", reason);
+    log.error("Worker was not ready during startup", reason);
   }
   createWindow();
 }
 
 if (singleInstance) {
   app.whenReady().then(bootstrap).catch((reason) => {
-    log.error("Falha fatal ao inicializar Noizzzy", reason);
+    log.error("Fatal error while starting Noizzzy", reason);
     app.quit();
   });
 }

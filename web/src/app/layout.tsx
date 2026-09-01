@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Noizzzy — restauração profissional de voz",
-  description: "Isole, restaure e finalize vozes de arquivos de áudio e vídeo com processamento local.",
+  title: "Noizzzy — professional voice restoration",
+  description: "Remove noise, restore voices, and master audio for streaming with local processing.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

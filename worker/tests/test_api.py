@@ -56,6 +56,25 @@ def test_job_contract_source_and_cancel(tmp_path: Path, monkeypatch) -> None:
         assert cancelled.json()["status"] in {"cancelling", "cancelled"}
 
 
+def test_job_defaults_to_noisy_audio_and_streaming(tmp_path: Path, monkeypatch) -> None:
+    async def fake_probe(ffprobe: str, source: Path):
+        return "audio", {"streams": [{"codec_type": "audio"}]}
+
+    monkeypatch.setattr("voice_worker.main.probe_media", fake_probe)
+    app = create_app(Settings(data_dir=tmp_path, job_ttl_hours=0), pipeline=WaitingPipeline())  # type: ignore[arg-type]
+
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/jobs",
+            files={"file": ("noisy-voice.wav", b"RIFF-test", "audio/wav")},
+        )
+        assert created.status_code == 202
+        job = app.state.manager.jobs[created.json()["id"]]
+        assert job.separate_voice is True
+        assert job.profile == "streaming"
+        client.delete(f"/api/jobs/{job.id}")
+
+
 def test_rejects_unknown_extension_before_probe(tmp_path: Path) -> None:
     app = create_app(Settings(data_dir=tmp_path), pipeline=WaitingPipeline())  # type: ignore[arg-type]
     with TestClient(app) as client:

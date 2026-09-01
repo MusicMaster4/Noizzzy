@@ -24,7 +24,7 @@ class WorkerManager extends EventEmitter {
     this.logger = logger;
     this.child = null;
     this.stopping = false;
-    this.status = { ready: false, message: "Iniciando processador local", error: null };
+    this.status = { ready: false, message: "Starting local processor", error: null };
   }
 
   snapshot() {
@@ -94,8 +94,8 @@ class WorkerManager extends EventEmitter {
     if (this.child) return this.waitUntilHealthy();
     const target = this.executable();
     this.stopping = false;
-    this.update({ ready: false, message: "Iniciando processador local", error: null });
-    this.logger.info(`Iniciando worker: ${target.command}`);
+    this.update({ ready: false, message: "Starting local processor", error: null });
+    this.logger.info(`Starting worker: ${target.command}`);
     this.child = spawn(target.command, target.args, {
       cwd: target.cwd,
       env: this.environment(),
@@ -105,13 +105,13 @@ class WorkerManager extends EventEmitter {
     this.child.stdout.on("data", (chunk) => this.logger.info(`[worker] ${chunk.toString("utf8").trimEnd()}`));
     this.child.stderr.on("data", (chunk) => this.logger.warn(`[worker] ${chunk.toString("utf8").trimEnd()}`));
     this.child.on("error", (reason) => {
-      this.logger.error("Não foi possível iniciar o worker", reason);
-      this.update({ ready: false, message: "Processador local indisponível", error: reason.message });
+      this.logger.error("Could not start worker", reason);
+      this.update({ ready: false, message: "Local processor unavailable", error: reason.message });
     });
     this.child.on("exit", (code, signal) => {
-      this.logger.info(`Worker encerrado: code=${code} signal=${signal}`);
+      this.logger.info(`Worker exited: code=${code} signal=${signal}`);
       this.child = null;
-      if (!this.stopping) this.update({ ready: false, message: "O processador local encerrou", error: `Código ${code ?? signal}` });
+      if (!this.stopping) this.update({ ready: false, message: "The local processor exited", error: `Code ${code ?? signal}` });
     });
     return this.waitUntilHealthy();
   }
@@ -123,7 +123,7 @@ class WorkerManager extends EventEmitter {
       try {
         const response = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(1200) });
         if (response.ok) {
-          this.update({ ready: true, message: "Processador local pronto", error: null });
+          this.update({ ready: true, message: "Local processor ready", error: null });
           return this.snapshot();
         }
       } catch (reason) {
@@ -131,8 +131,8 @@ class WorkerManager extends EventEmitter {
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    const message = lastError instanceof Error ? lastError.message : "Tempo limite excedido";
-    this.update({ ready: false, message: "Processador local indisponível", error: message });
+    const message = lastError instanceof Error ? lastError.message : "Timed out";
+    this.update({ ready: false, message: "Local processor unavailable", error: message });
     throw new Error(message);
   }
 

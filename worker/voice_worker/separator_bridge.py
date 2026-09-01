@@ -26,7 +26,7 @@ def identify(paths: list[Path]) -> tuple[Path, Path]:
     if instrumental is None and len(remaining) == 1:
         instrumental = remaining[0]
     if vocal is None or instrumental is None or vocal == instrumental:
-        raise RuntimeError("audio-separator não produziu os stems de voz e instrumental esperados")
+        raise RuntimeError("audio-separator did not produce the expected vocal and instrumental stems")
     return vocal, instrumental
 
 

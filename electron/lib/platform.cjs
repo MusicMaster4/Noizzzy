@@ -28,7 +28,7 @@ function platformLabel(platform = process.platform, arch = process.arch, hasNvid
   if (platform === "win32") return "CPU WINDOWS · LOCAL";
   if (platform === "darwin" && arch === "arm64") return "APPLE SILICON · LOCAL";
   if (platform === "darwin") return "MAC INTEL · LOCAL";
-  return "CPU LOCAL · PRIVADO";
+  return "LOCAL CPU · PRIVATE";
 }
 
 function runtimePaths(userData, platform = process.platform) {

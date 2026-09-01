@@ -31,7 +31,7 @@ async def run_command(
             stderr=asyncio.subprocess.PIPE,
         )
     except FileNotFoundError as exc:
-        raise ProcessingError(f"Executável não encontrado: {args[0]}") from exc
+        raise ProcessingError(f"Executable not found: {args[0]}") from exc
 
     communicate = asyncio.create_task(process.communicate())
     while not communicate.done():
@@ -43,7 +43,7 @@ async def run_command(
                 process.kill()
                 await process.wait()
             await communicate
-            raise JobCancelled("Processamento cancelado")
+            raise JobCancelled("Processing cancelled")
         await asyncio.sleep(0.15)
 
     stdout_bytes, stderr_bytes = await communicate
@@ -51,7 +51,7 @@ async def run_command(
     stderr = stderr_bytes.decode("utf-8", errors="replace")
     if process.returncode != 0:
         detail = "\n".join(stderr.strip().splitlines()[-12:])
-        raise ProcessingError(f"{Path(args[0]).name} falhou ({process.returncode}): {detail}")
+        raise ProcessingError(f"{Path(args[0]).name} failed ({process.returncode}): {detail}")
     return stdout, stderr
 
 
@@ -68,11 +68,11 @@ async def probe_media(ffprobe: str, source: Path) -> tuple[str, dict[str, Any]]:
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError as exc:
-        raise ProcessingError("O arquivo não retornou metadados de mídia válidos") from exc
+        raise ProcessingError("The file did not return valid media metadata") from exc
     streams = payload.get("streams", [])
     has_audio = any(stream.get("codec_type") == "audio" for stream in streams)
     if not has_audio:
-        raise ProcessingError("O arquivo não contém uma faixa de áudio")
+        raise ProcessingError("The file does not contain an audio track")
     kind = "video" if any(stream.get("codec_type") == "video" for stream in streams) else "audio"
     return kind, payload
 
@@ -80,11 +80,11 @@ async def probe_media(ffprobe: str, source: Path) -> tuple[str, dict[str, Any]]:
 def _last_loudnorm_json(stderr: str) -> dict[str, Any]:
     candidates = re.findall(r"\{\s*\"input_i\".*?\}", stderr, flags=re.DOTALL)
     if not candidates:
-        raise ProcessingError("FFmpeg não retornou as métricas loudnorm esperadas")
+        raise ProcessingError("FFmpeg did not return the expected loudness metrics")
     try:
         return json.loads(candidates[-1])
     except json.JSONDecodeError as exc:
-        raise ProcessingError("Métricas loudnorm inválidas") from exc
+        raise ProcessingError("Invalid loudness metrics") from exc
 
 
 def _float_or_none(value: Any) -> float | None:
@@ -149,7 +149,7 @@ async def normalize_two_pass(
     measured = _last_loudnorm_json(stderr)
     required = ["input_i", "input_tp", "input_lra", "input_thresh", "target_offset"]
     if any(_float_or_none(measured.get(key)) is None for key in required):
-        raise ProcessingError("O áudio é silencioso ou não pôde ser normalizado com EBU R128")
+        raise ProcessingError("The audio is silent or could not be normalized with EBU R128")
     loudnorm = (
         f"loudnorm=I={profile.integrated_lufs}:LRA={profile.loudness_range_lu}:TP={profile.true_peak_dbtp}:"
         f"measured_I={measured['input_i']}:measured_TP={measured['input_tp']}:"
@@ -180,7 +180,7 @@ async def normalize_transparent(
 ) -> LoudnessMetrics:
     """Adjust gain without denoising, compression, limiting, or changing the stereo image."""
     if before.integrated_lufs is None or before.true_peak_dbtp is None:
-        raise ProcessingError("O áudio é silencioso ou não pôde ser finalizado de forma transparente")
+        raise ProcessingError("The audio is silent or could not be mastered transparently")
 
     loudness_gain = profile.integrated_lufs - before.integrated_lufs
     peak_safe_gain = profile.true_peak_dbtp - before.true_peak_dbtp
